@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hotel Billing System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f2f4f1;--sf:#fff;--ink:#1b2a29;--mute:#5d6d6b;--line:#d5dcd8;--pine:#1f5c54;--pine-ink:#fff;--brass:#a97a1f;--red:#b0423a;--green:#2f7a4f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a19;--sf:#1b2625;--ink:#e8efed;--mute:#9db0ac;--line:#2e3d3b;--pine:#5fb3a6;--pine-ink:#0c1514;--brass:#d9a940;--red:#e07a70;--green:#6cc08f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121a19;--sf:#1b2625;--ink:#e8efed;--mute:#9db0ac;--line:#2e3d3b;--pine:#5fb3a6;--pine-ink:#0c1514;--brass:#d9a940;--red:#e07a70;--green:#6cc08f;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 24px;background:var(--sf);border-bottom:1px solid var(--line)}
+h1{margin:0;font:700 22px Georgia,serif}
+main{max-width:1100px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:800px){main{grid-template-columns:1fr}}
+.card{background:var(--sf);border:1px solid var(--line);padding:18px;border-radius:6px}
+h2{margin:0 0 10px;font:700 18px Georgia,serif}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+input,select{width:100%;padding:8px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end}
+button{font:500 14px inherit;padding:9px 14px;border:0;border-radius:4px;background:var(--pine);color:var(--pine-ink);cursor:pointer}
+button.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+button.sm{padding:3px 9px;font-size:12px}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+td:last-child,th:last-child{text-align:right}
+.tot td{font-weight:500;border-bottom:0}
+.grand td{font:700 18px Georgia,serif;border-top:2px solid var(--ink)}
+.badge{display:inline-block;padding:1px 9px;border-radius:10px;border:1px solid currentColor;font-size:12px}
+.paid{color:var(--green)}.due{color:var(--red)}
+.muted{color:var(--mute);font-size:13px}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.wide{grid-column:1/-1}
+.scroll{overflow-x:auto}
+@media print{header,.card:not(#invoice),.acts,.wide{display:none!important}main{display:block;padding:0}#invoice{border:0}}
+</style>
+</head>
+<body>
+<header><h1>Hotel billing system</h1></header>
+<main>
+  <section class="card">
+    <h2>Guest and stay</h2>
+    <label for="guest">Guest name</label><input id="guest" value="Amira Siddiqui">
+    <div class="g2">
+      <div><label for="room">Room number</label><input id="room" value="102"></div>
+      <div><label for="rate">Rate per night ($)</label><input id="rate" type="number" min="0" step="0.01" value="85"></div>
+      <div><label for="cin">Check-in</label><input id="cin" type="date"></div>
+      <div><label for="cout">Check-out</label><input id="cout" type="date"></div>
+      <div><label for="tax">Tax (%)</label><input id="tax" type="number" min="0" step="0.1" value="10"></div>
+      <div><label for="disc">Discount (%)</label><input id="disc" type="number" min="0" max="100" step="0.1" value="0"></div>
+    </div>
+
+    <h2 style="margin-top:22px">Extra charges</h2>
+    <div class="g3">
+      <div><label for="iname">Item</label><input id="iname" placeholder="Room service"></div>
+      <div><label for="iqty">Qty</label><input id="iqty" type="number" min="1" value="1"></div>
+      <div><label for="iprice">Price ($)</label><input id="iprice" type="number" min="0" step="0.01"></div>
+      <button id="addItem" type="button">Add</button>
+    </div>
+    <div class="muted" id="itemErr" role="alert"></div>
+
+    <h2 style="margin-top:22px">Payment</h2>
+    <div class="g2">
+      <div><label for="method">Method</label><select id="method"><option>Cash</option><option>Card</option><option>Bank transfer</option></select></div>
+      <div><label for="paid">Amount paid ($)</label><input id="paid" type="number" min="0" step="0.01" value="0"></div>
+    </div>
+  </section>
+
+  <section class="card" id="invoice">
+    <h2 id="invTitle">Invoice</h2>
+    <div class="muted" id="invMeta"></div>
+    <table><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead><tbody id="lines"></tbody></table>
+    <table style="margin-top:6px"><tbody id="sums"></tbody></table>
+    <div class="acts">
+      <button id="save" type="button">Save invoice</button>
+      <button class="ghost" id="print" type="button">Print</button>
+      <button class="ghost" id="reset" type="button">New bill</button>
+    </div>
+    <div class="muted" id="saveMsg" role="status" style="margin-top:8px"></div>
+  </section>
+
+  <section class="card wide">
+    <h2>Saved invoices</h2>
+    <div class="scroll"><table><thead><tr><th>No.</th><th>Guest</th><th>Room</th><th>Total</th><th>Paid</th><th>Status</th><th></th></tr></thead><tbody id="saved"></tbody></table></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var KEY="hotel-billing-v1",items=[],saved=[];
+  var $=function(id){return document.getElementById(id)};
+  function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+  function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+  function m(n){return "$"+(Math.round(n*100)/100).toFixed(2)}
+  function num(id){return parseFloat($(id).value)||0}
+  try{saved=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){saved=[]}
+  function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){}}
+
+  var t=new Date(),t2=new Date();t2.setDate(t2.getDate()+2);
+  $("cin").value=iso(t);$("cout").value=iso(t2);
+  items=[{name:"Room service",qty:2,price:18.5}];
+
+  function calc(){
+    var n=Math.max(1,Math.round((new Date($("cout").value)-new Date($("cin").value))/864e5)||1);
+    var room=n*num("rate"),extra=items.reduce(function(s,i){return s+i.qty*i.price},0);
+    var sub=room+extra,disc=sub*num("disc")/100,taxable=sub-disc,tax=taxable*num("tax")/100,total=taxable+tax;
+    return{n:n,room:room,extra:extra,sub:sub,disc:disc,tax:tax,total:total,paid:num("paid"),bal:total-num("paid")};
+  }
+  function draw(){
+    var c=calc(),h="";
+    $("invMeta").textContent=($("guest").value||"Guest")+" · Room "+$("room").value+" · "+c.n+(c.n>1?" nights":" night");
+    h+="<tr><td>Room, "+c.n+" × "+m(num("rate"))+"</td><td>"+c.n+"</td><td>"+m(c.room)+"</td></tr>";
+    items.forEach(function(i,k){h+="<tr><td>"+esc(i.name)+" <button class=\"ghost sm\" data-rm=\""+k+"\" aria-label=\"Remove "+esc(i.name)+"\">Remove</button></td><td>"+i.qty+"</td><td>"+m(i.qty*i.price)+"</td></tr>"});
+    $("lines").innerHTML=h;
+    var s="<tr class=\"tot\"><td>Subtotal</td><td>"+m(c.sub)+"</td></tr>";
+    if(c.disc)s+="<tr class=\"tot\"><td>Discount ("+num("disc")+"%)</td><td>−"+m(c.disc)+"</td></tr>";
+    s+="<tr class=\"tot\"><td>Tax ("+num("tax")+"%)</td><td>"+m(c.tax)+"</td></tr><tr class=\"grand\"><td>Total</td><td>"+m(c.total)+"</td></tr>"
+     +"<tr class=\"tot\"><td>Paid ("+$("method").value+")</td><td>"+m(c.paid)+"</td></tr>"
+     +"<tr class=\"tot\"><td>"+(c.bal<0?"Change due":"Balance due")+"</td><td>"+m(Math.abs(c.bal))+"</td></tr>";
+    $("sums").innerHTML=s;
+  }
+  function drawSaved(){
+    var h="";
+    if(!saved.length)h="<tr><td colspan=\"7\" class=\"muted\">No saved invoices yet. Fill in the bill and select Save invoice.</td></tr>";
+    saved.forEach(function(v,k){
+      var ok=v.paid>=v.total-0.005;
+      h+="<tr><td>"+v.no+"</td><td>"+esc(v.guest)+"</td><td>"+esc(v.room)+"</td><td>"+m(v.total)+"</td><td>"+m(v.paid)+"</td><td><span class=\"badge "+(ok?"paid":"due")+"\">"+(ok?"Paid":"Due "+m(v.total-v.paid))+"</span></td><td><button class=\"ghost sm\" data-del=\""+k+"\">Delete</button></td></tr>";
+    });
+    $("saved").innerHTML=h;
+  }
+
+  $("addItem").onclick=function(){
+    var n=$("iname").value.trim(),q=parseInt($("iqty").value,10),p=num("iprice");
+    if(!n||!(q>0)||!(p>0)){$("itemErr").textContent="Enter an item name, a quantity and a price above 0.";return}
+    $("itemErr").textContent="";items.push({name:n,qty:q,price:p});
+    $("iname").value="";$("iprice").value="";$("iqty").value=1;draw();
+  };
+  $("lines").onclick=function(e){var k=e.target.dataset.rm;if(k!==undefined){items.splice(+k,1);draw()}};
+  $("saved").onclick=function(e){var k=e.target.dataset.del;if(k!==undefined){saved.splice(+k,1);persist();drawSaved()}};
+  document.querySelectorAll("input,select").forEach(function(el){el.addEventListener("input",draw)});
+  $("save").onclick=function(){
+    var c=calc();
+    if(!$("guest").value.trim()){$("saveMsg").textContent="Enter the guest name before saving.";return}
+    var no="INV-"+(1001+saved.length);
+    saved.push({no:no,guest:$("guest").value.trim(),room:$("room").value,total:Math.round(c.total*100)/100,paid:c.paid});
+    persist();drawSaved();$("saveMsg").textContent="Saved as "+no+".";
+  };
+  $("print").onclick=function(){try{window.print()}catch(e){}};
+  $("reset").onclick=function(){
+    items=[];["guest","room","iname","iprice"].forEach(function(i){$(i).value=""});
+    $("paid").value=0;$("disc").value=0;$("saveMsg").textContent="";draw();$("guest").focus();
+  };
+  draw();drawSaved();
+})();
+</script>
+</body>
+</html>
